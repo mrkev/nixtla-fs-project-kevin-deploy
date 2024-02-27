@@ -1,5 +1,6 @@
 import axios from "axios";
 import utils from "./utils";
+import { DateEntry } from "../data/DateEntry";
 
 const DEFAULT_PER_PAGE = 30;
 
@@ -32,16 +33,11 @@ export async function getRepoStargazersCount(repo: string, token?: string) {
   return data.stargazers_count;
 }
 
-export type StarEntry = {
-  date: number; // unixtime
-  count: number;
-};
-
 export async function getRepoStarRecords(
   repo: string,
   token: string,
   maxRequestAmount: number
-): Promise<StarEntry[]> {
+): Promise<DateEntry[]> {
   const patchRes = await getRepoStargazers(repo, token);
 
   const headerLink = patchRes.headers["link"] || "";
@@ -112,7 +108,7 @@ export async function getRepoStarRecords(
   const starAmount = await getRepoStargazersCount(repo, token);
   starRecordsMap.set(utils.getDateString(Date.now()), starAmount);
 
-  const starRecords: StarEntry[] = [];
+  const starRecords: DateEntry[] = [];
 
   starRecordsMap.forEach((v, k) => {
     starRecords.push({

@@ -1,5 +1,3 @@
-import { Octokit } from "@octokit/rest";
-
 const repos = async (res: Response) => {
   const json = await res.json();
   if (Array.isArray(json)) {
