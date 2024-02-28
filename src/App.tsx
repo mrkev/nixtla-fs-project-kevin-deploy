@@ -14,12 +14,13 @@ import {
 } from "chart.js";
 import "chartjs-adapter-dayjs-4/dist/chartjs-adapter-dayjs-4.esm";
 import randomcolor from "randomcolor";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Line } from "react-chartjs-2";
 import "./App.css";
 import api from "./common/api";
 import { DateEntry } from "./data/DateEntry";
 import { GHRepo, GH_TOKEN, getAggregatedOrgStarCounts } from "./data/github";
+import { fetchPepyDownloadData } from "./data/pepy";
 
 ChartJS.register(
   CategoryScale,
@@ -32,7 +33,7 @@ ChartJS.register(
   TimeScale
 );
 
-const options: ChartOptions<"line"> = {
+const options = (title: string): ChartOptions<"line"> => ({
   responsive: true,
   plugins: {
     legend: {
@@ -40,7 +41,7 @@ const options: ChartOptions<"line"> = {
     },
     title: {
       display: true,
-      text: "Chart.js Line Chart",
+      text: title,
     },
   },
   scales: {
@@ -49,7 +50,7 @@ const options: ChartOptions<"line"> = {
       suggestedMin: new Date("2020/1/1").getTime(),
     },
   },
-};
+});
 
 const REPO_REGEX = new RegExp("^([^/]+)(/[^/]+)?$", "i");
 
@@ -71,8 +72,19 @@ async function datasetOfEntries(
 }
 
 export default function App() {
+  return (
+    <>
+      {/* <GithubStarsChart /> */}
+      <PepyDownloadsChart />
+    </>
+  );
+}
+
+function GithubStarsChart() {
   const [datasets, setDatasets] = useState<Record<string, LineDataset>>({});
   const [repoInput, setRepoInput] = useState("sveltejs/svelte");
+
+  const ghOptions = useMemo(() => options("Github Stars"), []);
 
   async function loadRepo(repo: GHRepo) {
     const repoData = await api.getRepoStarRecords(repo, GH_TOKEN, 10);
@@ -94,9 +106,12 @@ export default function App() {
     })();
   }, []);
 
-  const data: ChartData<"line", { x: number; y: number }[], number> = {
-    datasets: Object.values(datasets),
-  };
+  const data: ChartData<"line", { x: number; y: number }[], number> = useMemo(
+    () => ({
+      datasets: Object.values(datasets),
+    }),
+    [datasets]
+  );
 
   const submit = async () => {
     const parsed = REPO_REGEX.exec(repoInput);
@@ -137,8 +152,41 @@ export default function App() {
         />
         <button onClick={submit}>🔎</button>
         <button onClick={() => setDatasets({})}>❌</button>
-        <Line options={options} data={data} width={"500px"} height={400} />
+        <Line options={ghOptions} data={data} width={"500px"} height={400} />
       </div>
+    </>
+  );
+}
+
+function PepyDownloadsChart() {
+  const [datasets, setDatasets] = useState<Record<string, LineDataset>>({});
+  const [repoInput, setRepoInput] = useState("sveltejs/svelte");
+
+  const pepyOptions = useMemo(() => options("Github Stars"), []);
+
+  async function loadPackage(pkg: string) {
+    const repoData = await fetchPepyDownloadData(pkg);
+    const dataset = await datasetOfEntries(pkg, repoData);
+    setDatasets((prev) => ({ ...prev, [pkg]: dataset }));
+  }
+
+  const data: ChartData<"line", { x: number; y: number }[], number> = useMemo(
+    () => ({
+      datasets: Object.values(datasets),
+    }),
+    [datasets]
+  );
+
+  return (
+    <>
+      <button
+        onClick={async () => {
+          await loadPackage("numpy");
+        }}
+      >
+        test
+      </button>
+      <Line options={pepyOptions} data={data} width={"500px"} height={400} />
     </>
   );
 }
