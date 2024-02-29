@@ -25,3 +25,7 @@ export function extrapolateCounts(a: DateEntry, b: DateEntry, t: number) {
   const y = (t - a.date) * m + a.count;
   return y;
 }
+
+export function ascendingEntrySort(a: DateEntry, b: DateEntry) {
+  return a.date - b.date;
+}

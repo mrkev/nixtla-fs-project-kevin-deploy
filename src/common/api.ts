@@ -1,6 +1,8 @@
+// from: https://github.com/star-history/star-history
+
 import axios from "axios";
-import utils from "./utils";
-import { DateEntry } from "../data/DateEntry";
+import { range, getDateString } from "./utils";
+import { DateEntry, ascendingEntrySort } from "../data/DateEntry";
 
 const DEFAULT_PER_PAGE = 30;
 
@@ -60,9 +62,9 @@ export async function getRepoStarRecords(
 
   const requestPages: number[] = [];
   if (pageCount < maxRequestAmount) {
-    requestPages.push(...utils.range(1, pageCount));
+    requestPages.push(...range(1, pageCount));
   } else {
-    utils.range(1, maxRequestAmount).map((i) => {
+    range(1, maxRequestAmount).map((i) => {
       requestPages.push(Math.round((i * pageCount) / maxRequestAmount) - 1);
     });
     if (!requestPages.includes(1)) {
@@ -87,10 +89,7 @@ export async function getRepoStarRecords(
       starRecordsData.push(...data);
     });
     for (let i = 0; i < starRecordsData.length; ) {
-      starRecordsMap.set(
-        utils.getDateString(starRecordsData[i].starred_at),
-        i + 1
-      );
+      starRecordsMap.set(getDateString(starRecordsData[i].starred_at), i + 1);
       i += Math.floor(starRecordsData.length / maxRequestAmount) || 1;
     }
   } else {
@@ -98,7 +97,7 @@ export async function getRepoStarRecords(
       if (data.length > 0) {
         const starRecord = data[0];
         starRecordsMap.set(
-          utils.getDateString(starRecord.starred_at),
+          getDateString(starRecord.starred_at),
           DEFAULT_PER_PAGE * (requestPages[index] - 1)
         );
       }
@@ -106,7 +105,7 @@ export async function getRepoStarRecords(
   }
 
   const starAmount = await getRepoStargazersCount(repo, token);
-  starRecordsMap.set(utils.getDateString(Date.now()), starAmount);
+  starRecordsMap.set(getDateString(Date.now()), starAmount);
 
   const starRecords: DateEntry[] = [];
 
@@ -117,9 +116,7 @@ export async function getRepoStarRecords(
     });
   });
 
-  starRecords.sort(function (a, b) {
-    return a.date - b.date;
-  });
+  starRecords.sort(ascendingEntrySort);
 
   return starRecords;
 }

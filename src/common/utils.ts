@@ -1,15 +1,11 @@
+// from: https://github.com/star-history/star-history
+
 export function range(from: number, to: number): number[] {
   const r: number[] = [];
   for (let i = from; i <= to; i++) {
     r.push(i);
   }
   return r;
-}
-
-export function getTimeStampByDate(t: Date | number | string): number {
-  const d = new Date(t);
-
-  return d.getTime();
 }
 
 export function getDateString(
@@ -34,6 +30,12 @@ export function getDateString(
     .replace("ss", String(seconds));
 
   return formatedString;
+}
+
+export function getTimeStampByDate(t: Date | number | string): number {
+  const d = new Date(t);
+
+  return d.getTime();
 }
 
 export async function copyTextToClipboard(text: string) {
@@ -136,16 +138,3 @@ export function absolutifyLink(rel: string): string {
   anchor.setAttribute("href", rel);
   return anchor.href;
 }
-
-export default {
-  range,
-  getTimeStampByDate,
-  getDateString,
-  copyTextToClipboard,
-  convertSVGToDataURL,
-  waitImageLoaded,
-  calcBytes,
-  calcReadingTime,
-  getBase64Image,
-  absolutifyLink,
-};
