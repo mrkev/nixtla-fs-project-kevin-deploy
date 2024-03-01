@@ -1,24 +1,23 @@
 import z from "zod";
 
 // note: incomplete definition
-const PackageResponseSuccess = z.object({
+const PackageResponse = z.object({
   info: z.object({
     project_urls: z.record(z.string()),
   }),
 });
-const PackageResponseFailure = z.object({ message: z.string() });
-
-const PackageResponse = z.union([
-  PackageResponseSuccess,
-  PackageResponseFailure,
-]);
-
+const PackageResponseFailure = z.object({
+  message: z.string(),
+});
 export type PackageResponse = z.infer<typeof PackageResponse>;
 
-export async function infoForPackage(pkg: string) {
-  const response = await fetch(`http://pypi.python.org/pypi/${pkg}/json`);
+export async function infoForPackage(pkg: string): Promise<PackageResponse> {
+  const response = await fetch(`/pypi/${pkg}/json`);
   const json = await response.json();
-  const result: PackageResponse = PackageResponse.parse(json);
+  const result = z.union([PackageResponse, PackageResponseFailure]).parse(json);
+  if (!("info" in result)) {
+    throw new Error(result.message);
+  }
   return result;
 }
 

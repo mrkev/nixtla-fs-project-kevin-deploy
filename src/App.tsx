@@ -14,15 +14,10 @@ import "chartjs-adapter-dayjs-4/dist/chartjs-adapter-dayjs-4.esm";
 import { useMemo, useState } from "react";
 import { Line } from "react-chartjs-2";
 import "./App.css";
-import api from "./common/api";
-import { GHRepo, GH_TOKEN, getAggregatedOrgStarCounts } from "./data/github";
-import { fetchPepyDownloadData } from "./data/pepy";
-import { Subject } from "./state/subject";
-import { REPO_REGEX, arrayRemove } from "./utils";
-import { chartDisplayOptions } from "./chart";
-import { LineDataset } from "./chart";
-import { datasetOfEntries } from "./chart";
-import { datasetId } from "./chart";
+import { LineDataset, chartDisplayOptions, datasetOfEntries } from "./chart";
+import { predictDays } from "./data/nixtla";
+import { PyPackage } from "./state/PyPackage";
+import { arrayRemove, errMsg } from "./utils";
 
 ChartJS.register(
   CategoryScale,
@@ -35,182 +30,202 @@ ChartJS.register(
   TimeScale
 );
 
+const chartId = (
+  subject: PyPackage,
+  chart: "stars" | "stars.future" | "downloads" | "downloads.future"
+) => `${subject.id}.${chart}`;
+
 export default function App() {
-  const [subjects, setSubjects] = useState(() => [
-    new Subject("facebook/react", "repo"),
-  ]);
-  const [repoInput, setRepoInput] = useState("sveltejs/svelte");
+  const [loadStatus, setLoadStatus] = useState<"loading" | "idle">();
+  const [errorMsg, setError] = useState<string | null>(null);
+  const [subjects, setSubjects] = useState<PyPackage[]>([]);
+  const [repoInput, setRepoInput] = useState("numpy");
+  const [starCharts, setStarCharts] = useState<Record<string, LineDataset>>({});
+  const [downloadCharts, setDownloadCharts] = useState<
+    Record<string, LineDataset>
+  >({});
 
-  async function loadRepo(repo: GHRepo) {
-    const repoData = await api.getRepoStarRecords(repo, GH_TOKEN, 10);
-    const dataset = await datasetOfEntries(repo, repoData);
-    // setDatasets((prev) => ({ ...prev, [repo]: dataset }));
-  }
-
-  async function loadOrg(org: string) {
-    const orgData = await getAggregatedOrgStarCounts(org);
-    const dataset = await datasetOfEntries(org, orgData);
-    // setDatasets((prev) => ({ ...prev, [org]: dataset }));
-  }
-
-  // useEffect(function loadDefaultRepos() {
-  //   void (async function main() {
-  //     void loadRepo("vuejs/vue");
-  //     void loadRepo("vuejs/vue-router");
-  //     void loadOrg("vuejs");
-  //   })();
-  // }, []);
-  const submit = async () => {
-    const parsed = REPO_REGEX.exec(repoInput);
-    console.log(parsed);
-    if (parsed == null || parsed[1] == null) {
-      console.error("invalid");
+  async function loadStars(subject: PyPackage) {
+    // Chart the current stars
+    const stars = await subject.loadStars();
+    if (stars instanceof Error) {
+      console.error("error", stars);
+      setError(`Could not fetch github stars! Error: ${errMsg(stars)}`);
       return;
     }
 
-    const org = parsed[1];
-    const repo: string | null = parsed[2]?.substring(1) ?? null;
-    console.log(org, repo);
+    const starsDataset = datasetOfEntries(`${subject.id} stars`, stars);
+    setStarCharts((prev) => ({
+      ...prev,
+      [chartId(subject, "stars")]: starsDataset,
+    }));
 
-    if (repo == null) {
-      await loadOrg(org);
-    } else {
-      await loadRepo(`${org}/${repo}`);
+    // Chart future stars
+    const future = await predictDays(90, stars);
+    if (future instanceof Error) {
+      console.error(future);
+      setError(
+        `Could not predict future github stars! Error: ${errMsg(future)}`
+      );
+      return;
     }
 
-    setRepoInput("");
-  };
+    const chartDataset = datasetOfEntries(
+      `${subject.id} stars prediction`,
+      future
+    );
+    setStarCharts((prev) => ({
+      ...prev,
+      [chartId(subject, "stars.future")]: chartDataset,
+    }));
+  }
 
-  return (
-    <div className="card">
-      enter repo (ie, facebook/react) or enter org (ie, facebook)
-      <br />
-      <input
-        value={repoInput}
-        onChange={(e) => setRepoInput(e.target.value)}
-        type="text"
-        placeholder="enter repo (ie, facebook/react)"
-        onKeyDown={(e) => {
-          if (e.key === "Enter") {
-            submit();
-          }
-        }}
-      />
-      <button onClick={submit}>🔎</button>
-      <ul>
-        {subjects.map((subject) => {
-          return (
-            <li>
-              {subject.id} ({subject.kind}){" "}
-              <button
-                onClick={() => {
-                  console.log("WILL REM");
-                  const newarr = arrayRemove(subject, subjects);
-                  console.log("newarr", newarr);
-                  setSubjects(newarr);
-                }}
-              >
-                x
-              </button>
-            </li>
-          );
-        })}
-      </ul>
-      <GithubStarsChart subjects={subjects} />
-      {/* <PepyDownloadsChart /> */}
-    </div>
-  );
-}
-
-function GithubStarsChart({ subjects }: { subjects: Subject[] }) {
-  const chartOpts = useMemo(() => chartDisplayOptions("Github Stars"), []);
-
-  const [promises] = useState(new Map<string, Promise<void>>());
-  const [datasets, setDatasets] = useState<Record<string, LineDataset>>({});
-
-  for (const subject of subjects) {
-    // Add stars dataset
-    const current = datasetId(subject, "stars");
-    if (!promises.has(current)) {
-      promises.set(
-        current,
-        subject.stars
-          .then((stars) => datasetOfEntries(subject.id, stars))
-          .then((dataset) =>
-            setDatasets((prev) => ({ ...prev, [current]: dataset }))
-          )
-          .catch(console.error)
-      );
+  async function loadDownloads(subject: PyPackage) {
+    // Chart the current stars
+    const downloads = await subject.loadDownloads();
+    if (downloads instanceof Error) {
+      console.error(downloads);
+      setError(`Could not fetch downloads! Error: ${errMsg(downloads)}`);
+      return;
     }
 
-    // Add future stars dataset
-    const future = datasetId(subject, "futureStars");
-    if (!promises.has(future)) {
-      promises.set(
-        future,
-        subject.futureStars
-          .then((stars) => datasetOfEntries(`${subject.id} predictions`, stars))
-          .then((dataset) =>
-            setDatasets((prev) => ({ ...prev, [future]: dataset }))
-          )
-          .then(() => {
-            console.log("future done");
-          })
-          .catch(console.error)
-      );
+    const dlsDataset = datasetOfEntries(`${subject.id} downloads`, downloads);
+    setDownloadCharts((prev) => ({
+      ...prev,
+      [chartId(subject, "downloads")]: dlsDataset,
+    }));
+
+    // Chart future stars
+    const future = await predictDays(90, downloads);
+    if (future instanceof Error) {
+      console.error(future);
+      setError(`Could not predict future downloads! Error: ${errMsg(future)}`);
+      return;
+    }
+
+    const chartDataset = datasetOfEntries(
+      `${subject.id} downloads prediction`,
+      future
+    );
+    setDownloadCharts((prev) => ({
+      ...prev,
+      [chartId(subject, "downloads.future")]: chartDataset,
+    }));
+  }
+
+  async function loadPackage() {
+    setLoadStatus("loading");
+    setError(null);
+    try {
+      const pkg = repoInput;
+      setRepoInput("");
+      const subject = await PyPackage.fetch(pkg);
+      setSubjects((prev) => [...prev, subject]);
+      setLoadStatus("idle");
+
+      void loadStars(subject);
+      void loadDownloads(subject);
+    } catch (e) {
+      setError(errMsg(e));
+      setLoadStatus("idle");
     }
   }
 
-  console.log("HERE", promises);
+  function removePackage(subject: PyPackage) {
+    const newarr = arrayRemove(subject, subjects);
+    delete starCharts[chartId(subject, "stars")];
+    delete starCharts[chartId(subject, "stars.future")];
+    delete downloadCharts[chartId(subject, "downloads")];
+    delete downloadCharts[chartId(subject, "downloads.future")];
+
+    setSubjects(newarr);
+  }
+
+  const starChartsArr = Object.values(starCharts);
+  const downloadChartsArr = Object.values(downloadCharts);
+
+  return (
+    <>
+      <h1>enter a python package</h1>
+      <div style={{ display: "flex", flexDirection: "row", gap: 3 }}>
+        <input
+          style={{ flexGrow: 1, fontSize: "1.3em" }}
+          value={repoInput}
+          onChange={(e) => setRepoInput(e.target.value)}
+          type="text"
+          placeholder="enter package (ie, numpy, keras)"
+          onKeyDown={(e) => {
+            if (loadStatus === "loading") {
+              return;
+            }
+            if (e.key === "Enter") {
+              void loadPackage();
+            }
+          }}
+        />
+        <button
+          disabled={loadStatus === "loading"}
+          onClick={() => {
+            void loadPackage();
+          }}
+        >
+          🔎
+        </button>
+      </div>
+      {errorMsg && <div className="error">{errorMsg}</div>}
+      <div style={{ display: "flex", flexDirection: "row", gap: 8 }}>
+        {subjects.map((subject) => {
+          return (
+            <div
+              key={subject.id}
+              style={{ display: "flex", flexDirection: "row", gap: 4 }}
+            >
+              {subject.id}
+              <button onClick={() => removePackage(subject)}>x</button>
+            </div>
+          );
+        })}
+      </div>
+      {starChartsArr.length > 0 && (
+        <GithubStarsChart datasets={starChartsArr} />
+      )}
+      {downloadChartsArr.length > 0 && (
+        <PepyDownloadsChart datasets={downloadChartsArr} />
+      )}
+    </>
+  );
+}
+
+function GithubStarsChart({ datasets }: { datasets: LineDataset[] }) {
+  const chartOpts = useMemo(() => chartDisplayOptions("Github Stars"), []);
 
   const data = useMemo(() => {
     const data: ChartData<"line", { x: number; y: number }[], number> = {
-      datasets: Object.values(datasets),
+      datasets,
     };
     return data;
   }, [datasets]);
 
   return (
-    <>
-      <div className="card">
-        <button onClick={() => setDatasets({})}>❌</button>
-        <Line options={chartOpts} data={data} width={"500px"} height={400} />
-      </div>
-    </>
+    <div className="card">
+      <Line options={chartOpts} data={data} width={"500px"} height={400} />
+    </div>
   );
 }
 
-function PepyDownloadsChart() {
-  const [datasets, setDatasets] = useState<Record<string, LineDataset>>({});
-  const [repoInput, setRepoInput] = useState("sveltejs/svelte");
-
-  const pepyOptions = useMemo(() => chartDisplayOptions("Github Stars"), []);
-
-  async function loadPackage(pkg: string) {
-    const repoData = await fetchPepyDownloadData(pkg);
-    const dataset = await datasetOfEntries(pkg, repoData);
-    setDatasets((prev) => ({ ...prev, [pkg]: dataset }));
-  }
+function PepyDownloadsChart({ datasets }: { datasets: LineDataset[] }) {
+  const chartOptions = useMemo(() => chartDisplayOptions("Pepy Downloads"), []);
 
   const data: ChartData<"line", { x: number; y: number }[], number> = useMemo(
     () => ({
-      datasets: Object.values(datasets),
+      datasets: datasets,
     }),
     [datasets]
   );
 
   return (
-    <>
-      <button
-        onClick={async () => {
-          const subject = new Subject("facebook/react", "repo");
-          console.log(subject);
-          (window as any).subject = subject;
-        }}
-      >
-        test
-      </button>
-      <Line options={pepyOptions} data={data} width={"500px"} height={400} />
-    </>
+    <div className="card">
+      <Line options={chartOptions} data={data} width={"500px"} height={400} />
+    </div>
   );
 }

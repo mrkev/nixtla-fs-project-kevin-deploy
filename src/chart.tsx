@@ -1,34 +1,42 @@
 import { ChartDataset, ChartOptions } from "chart.js";
 import randomcolor from "randomcolor";
-import { LineDataset } from "./chart";
 import { DateEntry } from "./data/DateEntry";
-import { LineDataset } from "./chart";
-import { DateEntry } from "./data/DateEntry";
-import { Subject } from "./state/subject";
 
 export const chartDisplayOptions = (title: string): ChartOptions<"line"> => ({
   responsive: true,
+  font: {
+    family: "monospace",
+  },
   plugins: {
     legend: {
       position: "top" as const,
+      labels: {
+        font: {
+          family: "monospace",
+        },
+      },
     },
     title: {
       display: true,
       text: title,
+      font: {
+        family: "monospace",
+      },
     },
   },
   scales: {
     x: {
       type: "time",
-      suggestedMin: new Date("2020/1/1").getTime(),
+      // suggestedMin: new Date("2020/1/1").getTime(),
     },
   },
 });
+
 export type LineDataset = ChartDataset<"line", { x: number; y: number }[]>;
-export async function datasetOfEntries(
+export function datasetOfEntries(
   label: string,
   data: DateEntry[]
-): Promise<LineDataset> {
+): LineDataset {
   return {
     label: label,
     data: data.map((datum) => ({
@@ -38,10 +46,4 @@ export async function datasetOfEntries(
     borderColor: randomcolor({ seed: label }),
     backgroundColor: randomcolor({ seed: label }),
   };
-}
-export function datasetId(
-  subject: Subject,
-  dataset: "stars" | "futureStars" | "downloads" | "futureDownloads"
-) {
-  return `${subject.kind}.${subject.id}.${dataset}`;
 }

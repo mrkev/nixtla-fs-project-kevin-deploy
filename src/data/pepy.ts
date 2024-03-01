@@ -1,4 +1,4 @@
-import { DateEntry } from "./DateEntry";
+import { DateEntry, ascendingEntrySort } from "./DateEntry";
 import z from "zod";
 
 // const PEPY_BASE_URL = "https://api.pepy.tech";
@@ -39,9 +39,9 @@ export async function fetchPepyDownloadData(pkg: string): Promise<DateEntry[]> {
       total += num;
     }
 
-    // TODO: Sort?
     dateEntries.push({ date: new Date(date).getTime(), count: total });
   }
 
+  dateEntries.sort(ascendingEntrySort);
   return dateEntries;
 }

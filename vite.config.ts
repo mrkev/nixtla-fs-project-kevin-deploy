@@ -19,6 +19,16 @@ export default defineConfig({
           return res;
         },
       },
+      "/pypi/": {
+        target: "https://pypi.python.org/",
+        changeOrigin: true,
+        secure: false,
+        rewrite(path) {
+          console.log(path);
+          const res = path.replace(/^\/pepy/, "/api");
+          return res;
+        },
+      },
       // "/nixtla/": {
       //   target: "http://api.pepy.tech/",
       //   changeOrigin: true,

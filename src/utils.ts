@@ -41,3 +41,11 @@ export function arrayRemove<T>(remove: T, arr: T[]): T[] {
 }
 
 export const REPO_REGEX = new RegExp("^([^/]+)(/[^/]+)?$", "i");
+
+export function errMsg(e: unknown) {
+  return e instanceof Error
+    ? e.message
+    : typeof e === "string"
+    ? e
+    : `Unknown Error`;
+}
