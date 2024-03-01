@@ -6,8 +6,14 @@ export const GH_TOKEN = import.meta.env.VITE_GH_TOKEN;
 
 export type GHRepo = `${string}/${string}`;
 
-async function getAllOrgData(org: string) {
-  const repos = await getAllRepos(org);
+async function getAllOrgData(
+  org: string,
+  repoData?: {
+    name: string;
+    stargazers_count: number;
+  }[]
+) {
+  const repos = repoData ?? (await getAllRepos(org));
   const results = await Promise.all(
     repos.map(async (repo) => {
       if (repo.stargazers_count === 0) {
@@ -53,8 +59,14 @@ function asLinkedList(entires: DateEntry[]): DateLinkedEntry | null {
   return first;
 }
 
-export async function getAggregatedOrgStarCounts(org: string) {
-  const orgData = await getAllOrgData(org);
+export async function getAggregatedOrgStarCounts(
+  org: string,
+  repoData?: {
+    name: string;
+    stargazers_count: number;
+  }[]
+): Promise<DateEntry[]> {
+  const orgData = await getAllOrgData(org, repoData);
   const allData = orgData.map(({ repo, starHistory }) => ({
     repo,
     // TODO: ensure at least 2?

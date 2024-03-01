@@ -5,8 +5,7 @@ import { fetchPepyDownloadData } from "../data/pepy";
 import { PackageResponse, infoForPackage } from "../data/pypi";
 
 export class PyPackage {
-  public readonly repo: string | null = null;
-  public readonly org: string | null = null;
+  public readonly repo: readonly [string, string] | null = null;
 
   static async fetch(pkg: string) {
     const info = await infoForPackage(pkg);
@@ -38,8 +37,13 @@ export class PyPackage {
       return;
     }
 
-    this.repo = repoResult[0];
-    this.org = this.repo.split("/")[0];
+    const [org, repo] = repoResult[0].split("/");
+    console.log(repoResult[0]);
+    this.repo = [org, repo];
+  }
+
+  get org() {
+    return this.repo?.[0] ?? null;
   }
 
   public async loadStars(): Promise<DateEntry[] | Error> {

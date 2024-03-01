@@ -18,6 +18,7 @@ import { LineDataset, chartDisplayOptions, datasetOfEntries } from "./chart";
 import { predictDays } from "./data/nixtla";
 import { PyPackage } from "./state/PyPackage";
 import { arrayRemove, errMsg } from "./utils";
+import { GhOrg } from "./state/GhOrg";
 
 ChartJS.register(
   CategoryScale,
@@ -30,20 +31,22 @@ ChartJS.register(
   TimeScale
 );
 
-const chartId = (
-  subject: PyPackage,
-  chart: "stars" | "stars.future" | "downloads" | "downloads.future"
-) => `${subject.id}.${chart}`;
+const chartId = (subject: PyPackage | GhOrg, chart: "current" | "future") =>
+  `${subject.id}.${chart}`;
+
+type ChartMap = Record<string, LineDataset>;
 
 export default function App() {
   const [loadStatus, setLoadStatus] = useState<"loading" | "idle">();
   const [errorMsg, setError] = useState<string | null>(null);
   const [subjects, setSubjects] = useState<PyPackage[]>([]);
+  const [orgs, setOrgs] = useState<GhOrg[]>([]);
+
   const [repoInput, setRepoInput] = useState("numpy");
-  const [starCharts, setStarCharts] = useState<Record<string, LineDataset>>({});
-  const [downloadCharts, setDownloadCharts] = useState<
-    Record<string, LineDataset>
-  >({});
+
+  const [orgStarCharts, setOrgStarCharts] = useState<ChartMap>({});
+  const [starCharts, setStarCharts] = useState<ChartMap>({});
+  const [downloadCharts, setDownloadCharts] = useState<ChartMap>({});
 
   async function loadStars(subject: PyPackage) {
     // Chart the current stars
@@ -57,7 +60,7 @@ export default function App() {
     const starsDataset = datasetOfEntries(`${subject.id} stars`, stars);
     setStarCharts((prev) => ({
       ...prev,
-      [chartId(subject, "stars")]: starsDataset,
+      [chartId(subject, "current")]: starsDataset,
     }));
 
     // Chart future stars
@@ -76,7 +79,7 @@ export default function App() {
     );
     setStarCharts((prev) => ({
       ...prev,
-      [chartId(subject, "stars.future")]: chartDataset,
+      [chartId(subject, "future")]: chartDataset,
     }));
   }
 
@@ -92,7 +95,7 @@ export default function App() {
     const dlsDataset = datasetOfEntries(`${subject.id} downloads`, downloads);
     setDownloadCharts((prev) => ({
       ...prev,
-      [chartId(subject, "downloads")]: dlsDataset,
+      [chartId(subject, "current")]: dlsDataset,
     }));
 
     // Chart future stars
@@ -109,7 +112,7 @@ export default function App() {
     );
     setDownloadCharts((prev) => ({
       ...prev,
-      [chartId(subject, "downloads.future")]: chartDataset,
+      [chartId(subject, "future")]: chartDataset,
     }));
   }
 
@@ -125,73 +128,175 @@ export default function App() {
 
       void loadStars(subject);
       void loadDownloads(subject);
+      if (subject.org != null) {
+        void loadOrg(subject.org);
+      }
     } catch (e) {
       setError(errMsg(e));
       setLoadStatus("idle");
     }
   }
 
+  async function loadOrg(id: string) {
+    for (const existing of orgs) {
+      if (id === existing.id) {
+        return;
+      }
+    }
+
+    const org = await GhOrg.fetch(id);
+    if (org instanceof Error) {
+      console.error(org);
+      setError(`Error loading org ${id}: ${errMsg(org)}`);
+      return;
+    }
+
+    setOrgs((prev) => [...prev, org]);
+
+    // Chart the current stars
+    const stars = await org.loadStars();
+    if (stars instanceof Error) {
+      console.error("error", stars);
+      setError(`Could not fetch github org stars! Error: ${errMsg(stars)}`);
+      return;
+    }
+
+    const starsDataset = datasetOfEntries(`${org.id} total stars`, stars);
+    setOrgStarCharts((prev) => ({
+      ...prev,
+      [chartId(org, "current")]: starsDataset,
+    }));
+
+    // Chart future stars
+    console.log("fetching future");
+    const future = await predictDays(90, stars);
+    if (future instanceof Error) {
+      console.error(future);
+      setError(
+        `Could not predict future github org stars! Error: ${errMsg(future)}`
+      );
+      return;
+    }
+
+    const chartDataset = datasetOfEntries(`${org.id} stars prediction`, future);
+    setOrgStarCharts((prev) => ({
+      ...prev,
+      [chartId(org, "future")]: chartDataset,
+    }));
+  }
+
   function removePackage(subject: PyPackage) {
     const newarr = arrayRemove(subject, subjects);
-    delete starCharts[chartId(subject, "stars")];
-    delete starCharts[chartId(subject, "stars.future")];
-    delete downloadCharts[chartId(subject, "downloads")];
-    delete downloadCharts[chartId(subject, "downloads.future")];
+    delete starCharts[chartId(subject, "current")];
+    delete starCharts[chartId(subject, "future")];
+    delete downloadCharts[chartId(subject, "current")];
+    delete downloadCharts[chartId(subject, "future")];
+
+    const wantOrgs = new Set(newarr.map((s) => s.org));
+    for (const org of orgs) {
+      if (!wantOrgs.has(org.id)) {
+        delete orgStarCharts[chartId(org, "current")];
+        delete orgStarCharts[chartId(org, "future")];
+        const neworgs = arrayRemove(org, orgs);
+        setOrgs(neworgs);
+        break;
+      }
+    }
 
     setSubjects(newarr);
   }
 
   const starChartsArr = Object.values(starCharts);
   const downloadChartsArr = Object.values(downloadCharts);
+  const orgStarChartsArr = Object.values(orgStarCharts);
 
   return (
     <>
-      <h1>enter a python package</h1>
-      <div style={{ display: "flex", flexDirection: "row", gap: 3 }}>
-        <input
-          style={{ flexGrow: 1, fontSize: "1.3em" }}
-          value={repoInput}
-          onChange={(e) => setRepoInput(e.target.value)}
-          type="text"
-          placeholder="enter package (ie, numpy, keras)"
-          onKeyDown={(e) => {
-            if (loadStatus === "loading") {
-              return;
-            }
-            if (e.key === "Enter") {
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <h1>enter a python package</h1>
+        <div style={{ display: "flex", flexDirection: "row", gap: 3 }}>
+          <input
+            style={{ flexGrow: 1, fontSize: "1.3em" }}
+            value={repoInput}
+            onChange={(e) => setRepoInput(e.target.value)}
+            type="text"
+            placeholder="enter package (ie, numpy, keras)"
+            onKeyDown={(e) => {
+              if (loadStatus === "loading") {
+                return;
+              }
+              if (e.key === "Enter") {
+                void loadPackage();
+              }
+            }}
+          />
+          <button
+            disabled={loadStatus === "loading"}
+            onClick={() => {
               void loadPackage();
-            }
-          }}
-        />
-        <button
-          disabled={loadStatus === "loading"}
-          onClick={() => {
-            void loadPackage();
-          }}
-        >
-          🔎
-        </button>
+            }}
+          >
+            🔎
+          </button>
+        </div>
+        {errorMsg && <div className="error">{errorMsg}</div>}
+        <div style={{ display: "flex", flexDirection: "row", gap: 8 }}>
+          {subjects.map((subject) => {
+            return (
+              <div key={subject.id} className="subjectCard">
+                <b>{subject.id}</b>
+                <div className="subtle">
+                  <i className="ri-github-fill"></i>
+                  {subject.repo ? (
+                    <a
+                      target="_blank"
+                      href={`https://github.com/${subject.repo[0]}/${subject.repo[1]}`}
+                    >
+                      {subject.repo[0]}/{subject.repo[1]}
+                    </a>
+                  ) : (
+                    <i>unknown</i>
+                  )}
+                </div>
+                {subject.repo ? (
+                  <button className="subtle" onClick={() => {}}>
+                    org stars: {subject.repo[0]}
+                  </button>
+                ) : (
+                  <br />
+                )}
+                <button
+                  style={{
+                    position: "absolute",
+                    right: 4,
+                    top: 4,
+                    boxSizing: "border-box",
+                  }}
+                  onClick={() => removePackage(subject)}
+                >
+                  x
+                </button>
+              </div>
+            );
+          })}
+        </div>
+        {orgStarChartsArr.length > 0 && (
+          <OrgStarsChart datasets={orgStarChartsArr} />
+        )}
+        {starChartsArr.length > 0 && (
+          <GithubStarsChart datasets={starChartsArr} />
+        )}
+
+        {downloadChartsArr.length > 0 && (
+          <PepyDownloadsChart datasets={downloadChartsArr} />
+        )}
       </div>
-      {errorMsg && <div className="error">{errorMsg}</div>}
-      <div style={{ display: "flex", flexDirection: "row", gap: 8 }}>
-        {subjects.map((subject) => {
-          return (
-            <div
-              key={subject.id}
-              style={{ display: "flex", flexDirection: "row", gap: 4 }}
-            >
-              {subject.id}
-              <button onClick={() => removePackage(subject)}>x</button>
-            </div>
-          );
-        })}
-      </div>
-      {starChartsArr.length > 0 && (
-        <GithubStarsChart datasets={starChartsArr} />
-      )}
-      {downloadChartsArr.length > 0 && (
-        <PepyDownloadsChart datasets={downloadChartsArr} />
-      )}
+      {/* <div style={{ marginTop: 170 }}>
+        Orgs
+        {orgStarChartsArr.length > 0 && (
+          <OrgStarsChart datasets={orgStarChartsArr} />
+        )}
+      </div> */}
     </>
   );
 }
@@ -215,6 +320,23 @@ function GithubStarsChart({ datasets }: { datasets: LineDataset[] }) {
 
 function PepyDownloadsChart({ datasets }: { datasets: LineDataset[] }) {
   const chartOptions = useMemo(() => chartDisplayOptions("Pepy Downloads"), []);
+
+  const data: ChartData<"line", { x: number; y: number }[], number> = useMemo(
+    () => ({
+      datasets: datasets,
+    }),
+    [datasets]
+  );
+
+  return (
+    <div className="card">
+      <Line options={chartOptions} data={data} width={"500px"} height={400} />
+    </div>
+  );
+}
+
+function OrgStarsChart({ datasets }: { datasets: LineDataset[] }) {
+  const chartOptions = useMemo(() => chartDisplayOptions("Org Stars"), []);
 
   const data: ChartData<"line", { x: number; y: number }[], number> = useMemo(
     () => ({

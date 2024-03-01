@@ -1,10 +1,9 @@
 #root {
-  max-width: 720px;
   min-width: 500px;
   /* margin: 0 auto; */
   text-align: center;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   height: 100%;
   gap: 8px;
   margin-top: 16px;
@@ -20,4 +19,19 @@
 
 .card {
   padding: 2em;
+}
+
+.subtle {
+  opacity: 0.6;
+}
+
+.subjectCard {
+  display: flex;
+  flex-direction: column;
+  gap: 4;
+  text-align: left;
+  position: relative;
+  background: rgba(133, 133, 133, 0.2);
+  border-radius: 3;
+  padding: 4px 8px;
 }
