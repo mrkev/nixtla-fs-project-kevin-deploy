@@ -15,7 +15,7 @@ async function getAllOrgData(
 ) {
   const repos = repoData ?? (await getAllRepos(org));
   const results = await Promise.all(
-    repos.map(async (repo) => {
+    repos.map(async (repo: any) => {
       if (repo.stargazers_count === 0) {
         return { repo: repo.name, starHistory: [] };
       } else {
