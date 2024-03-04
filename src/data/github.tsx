@@ -1,5 +1,5 @@
 import { getAllRepos } from "../api2";
-import api from "../common/api";
+import { getRepoStarRecords } from "../common/api";
 import { DateEntry, DateLinkedEntry, extrapolateCounts } from "./DateEntry";
 
 export const GH_TOKEN = import.meta.env.VITE_GH_TOKEN;
@@ -21,12 +21,10 @@ async function getAllOrgData(
       } else {
         return {
           repo: repo.name,
-          starHistory: await api
-            .getRepoStarRecords(repo.name, GH_TOKEN, 10)
-            .catch(() => {
-              console.log(`error: getting data for ${repo.name}`);
-              return [] as DateEntry[];
-            }),
+          starHistory: await getRepoStarRecords(repo.name, 10).catch(() => {
+            console.log(`error: getting data for ${repo.name}`);
+            return [] as DateEntry[];
+          }),
         };
       }
     })

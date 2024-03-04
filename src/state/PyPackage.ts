@@ -1,11 +1,12 @@
-import api from "../common/api";
+import { getRepoStarRecords } from "../common/api";
 import { DateEntry } from "../data/DateEntry";
-import { GH_TOKEN } from "../data/github";
 import { fetchPepyDownloadData } from "../data/pepy";
 import { PackageResponse, infoForPackage } from "../data/pypi";
+import { ReactiveValue } from "./ReactiveValue";
 
 export class PyPackage {
   public readonly repo: readonly [string, string] | null = null;
+  public readonly currentStars = ReactiveValue.of<number | null>(null);
 
   static async fetch(pkg: string) {
     const info = await infoForPackage(pkg);
@@ -67,7 +68,9 @@ export class PyPackage {
 
     try {
       const repo = repoResult[0];
-      const stars = await api.getRepoStarRecords(repo, GH_TOKEN, 10);
+      const stars = await getRepoStarRecords(repo, 10);
+      const total = stars[stars.length - 1].count;
+      this.currentStars.set(total);
       return stars;
     } catch (e) {
       return e as Error;

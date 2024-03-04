@@ -3,78 +3,96 @@
 import axios from "axios";
 import { range, getDateString } from "./utils";
 import { DateEntry, ascendingEntrySort } from "../data/DateEntry";
+import { GH_TOKEN } from "../data/github";
 
 const DEFAULT_PER_PAGE = 30;
 
-export async function getRepoStargazers(
-  repo: string,
-  token?: string,
-  page?: number
-) {
-  let url = `https://api.github.com/repos/${repo}/stargazers?per_page=${DEFAULT_PER_PAGE}`;
-
-  if (page !== undefined) {
-    url = `${url}&page=${page}`;
-  }
+async function getRepoStargazers(repo: string, page: number) {
+  const url = `https://api.github.com/repos/${repo}/stargazers?per_page=${DEFAULT_PER_PAGE}&page=${page}`;
   return axios.get(url, {
     headers: {
       Accept: "application/vnd.github.v3.star+json",
-      Authorization: token ? `token ${token}` : "",
+      Authorization: `token ${GH_TOKEN}`,
+      "X-GitHub-Api-Version": "2022-11-28",
     },
   });
 }
 
-export async function getRepoStargazersCount(repo: string, token?: string) {
+async function getRepoStargazersCount(repo: string) {
   const { data } = await axios.get(`https://api.github.com/repos/${repo}`, {
     headers: {
       Accept: "application/vnd.github.v3.star+json",
-      Authorization: token ? `token ${token}` : "",
+      Authorization: `token ${GH_TOKEN}`,
+      "X-GitHub-Api-Version": "2022-11-28",
     },
   });
 
   return data.stargazers_count;
 }
 
+const MAX_REQ_AMOUNT = 10;
+function pagesToFetch(totalPages: number) {
+  if (totalPages < MAX_REQ_AMOUNT) {
+    return range(1, totalPages);
+  }
+
+  const pageNumbers = new Set<number>();
+  range(1, MAX_REQ_AMOUNT).map((i) => {
+    pageNumbers.add(Math.round((i * totalPages) / MAX_REQ_AMOUNT) - 1);
+  });
+
+  // always include first page
+  if (!pageNumbers.has(1)) {
+    pageNumbers.add(1);
+  }
+
+  const pagesToRequest = Array.from(pageNumbers).sort((a, b) => a - b);
+
+  return pagesToRequest;
+}
+
+export function githubHeadersGetLastPage(headers: Record<string, string>) {
+  const headerLinks = headers["link"] ?? "";
+  const lastMatch = /next.*&page=(\d*).*last/.exec(headerLinks);
+  if (
+    lastMatch != null &&
+    lastMatch[1] != null &&
+    Number.isInteger(Number(lastMatch[1]))
+  ) {
+    return Number(lastMatch[1]);
+  } else {
+    return null;
+  }
+}
+
 export async function getRepoStarRecords(
   repo: string,
-  token: string,
   maxRequestAmount: number
 ): Promise<DateEntry[]> {
-  const patchRes = await getRepoStargazers(repo, token);
-
-  const headerLink = patchRes.headers["link"] || "";
+  const firstPage = await getRepoStargazers(repo, 1);
+  const headerLinks = firstPage.headers["link"] ?? "";
 
   let pageCount = 1;
-  const regResult = /next.*&page=(\d*).*last/.exec(headerLink);
+  const lastMatch = /next.*&page=(\d*).*last/.exec(headerLinks);
 
-  if (regResult) {
-    if (regResult[1] && Number.isInteger(Number(regResult[1]))) {
-      pageCount = Number(regResult[1]);
-    }
+  if (
+    lastMatch != null &&
+    lastMatch[1] != null &&
+    Number.isInteger(Number(lastMatch[1]))
+  ) {
+    pageCount = Number(lastMatch[1]);
   }
 
-  if (pageCount === 1 && patchRes?.data?.length === 0) {
-    throw {
-      status: patchRes.status,
-      data: [],
-    };
+  if (pageCount === 1 && firstPage?.data?.length === 0) {
+    console.warn("no stars");
+    return [];
   }
 
-  const requestPages: number[] = [];
-  if (pageCount < maxRequestAmount) {
-    requestPages.push(...range(1, pageCount));
-  } else {
-    range(1, maxRequestAmount).map((i) => {
-      requestPages.push(Math.round((i * pageCount) / maxRequestAmount) - 1);
-    });
-    if (!requestPages.includes(1)) {
-      requestPages.unshift(1);
-    }
-  }
+  const requestPages: number[] = pagesToFetch(pageCount);
 
   const resArray = await Promise.all(
     requestPages.map((page) => {
-      return getRepoStargazers(repo, token, page);
+      return getRepoStargazers(repo, page);
     })
   );
 
@@ -104,7 +122,7 @@ export async function getRepoStarRecords(
     });
   }
 
-  const starAmount = await getRepoStargazersCount(repo, token);
+  const starAmount = await getRepoStargazersCount(repo);
   starRecordsMap.set(getDateString(Date.now()), starAmount);
 
   const starRecords: DateEntry[] = [];
@@ -120,25 +138,4 @@ export async function getRepoStarRecords(
 
   return starRecords;
 }
-
-export async function getRepoLogoUrl(
-  repo: string,
-  token?: string
-): Promise<string> {
-  const owner = repo.split("/")[0];
-  const { data } = await axios.get(`https://api.github.com/users/${owner}`, {
-    headers: {
-      Accept: "application/vnd.github.v3.star+json",
-      Authorization: token ? `token ${token}` : "",
-    },
-  });
-
-  return data.avatar_url;
-}
-
-export default {
-  getRepoStargazers,
-  getRepoStargazersCount,
-  getRepoStarRecords,
-  getRepoLogoUrl,
-};
+(window as any).getRepoStarRecords = getRepoStarRecords;

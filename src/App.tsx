@@ -14,11 +14,12 @@ import "chartjs-adapter-dayjs-4/dist/chartjs-adapter-dayjs-4.esm";
 import { useMemo, useState } from "react";
 import { Line } from "react-chartjs-2";
 import "./App.css";
+import { PyPackageCard } from "./PyPackageCard";
 import { LineDataset, chartDisplayOptions, datasetOfEntries } from "./chart";
 import { predictDays } from "./data/nixtla";
+import { GhOrg } from "./state/GhOrg";
 import { PyPackage } from "./state/PyPackage";
 import { arrayRemove, errMsg } from "./utils";
-import { GhOrg } from "./state/GhOrg";
 
 ChartJS.register(
   CategoryScale,
@@ -48,21 +49,28 @@ export default function App() {
   const [starCharts, setStarCharts] = useState<ChartMap>({});
   const [downloadCharts, setDownloadCharts] = useState<ChartMap>({});
 
-  async function loadStars(subject: PyPackage) {
+  async function loadStars(pkg: PyPackage) {
     // Chart the current stars
-    const stars = await subject.loadStars();
+    const stars = await pkg.loadStars();
     if (stars instanceof Error) {
       console.error("error", stars);
       setError(`Could not fetch github stars! Error: ${errMsg(stars)}`);
       return;
     }
 
-    const starsDataset = datasetOfEntries(`${subject.id} stars`, stars);
+    const starsDataset = datasetOfEntries(`${pkg.id} stars`, stars);
     setStarCharts((prev) => ({
       ...prev,
-      [chartId(subject, "current")]: starsDataset,
+      [chartId(pkg, "current")]: starsDataset,
     }));
 
+    if (stars[stars.length - 1].count > 40_000) {
+      // TODO: max width
+      setError(
+        `Repos >40,000 stars don't load predictions. Only the first 40k stars events can be accessed. Without recent data, it's impossible to create an accurate prediction.`
+      );
+      return;
+    }
     // Chart future stars
     const future = await predictDays(90, stars);
     if (future instanceof Error) {
@@ -73,29 +81,26 @@ export default function App() {
       return;
     }
 
-    const chartDataset = datasetOfEntries(
-      `${subject.id} stars prediction`,
-      future
-    );
+    const chartDataset = datasetOfEntries(`${pkg.id} stars prediction`, future);
     setStarCharts((prev) => ({
       ...prev,
-      [chartId(subject, "future")]: chartDataset,
+      [chartId(pkg, "future")]: chartDataset,
     }));
   }
 
-  async function loadDownloads(subject: PyPackage) {
+  async function loadDownloads(pkg: PyPackage) {
     // Chart the current stars
-    const downloads = await subject.loadDownloads();
+    const downloads = await pkg.loadDownloads();
     if (downloads instanceof Error) {
       console.error(downloads);
       setError(`Could not fetch downloads! Error: ${errMsg(downloads)}`);
       return;
     }
 
-    const dlsDataset = datasetOfEntries(`${subject.id} downloads`, downloads);
+    const dlsDataset = datasetOfEntries(`${pkg.id} downloads`, downloads);
     setDownloadCharts((prev) => ({
       ...prev,
-      [chartId(subject, "current")]: dlsDataset,
+      [chartId(pkg, "current")]: dlsDataset,
     }));
 
     // Chart future stars
@@ -107,12 +112,12 @@ export default function App() {
     }
 
     const chartDataset = datasetOfEntries(
-      `${subject.id} downloads prediction`,
+      `${pkg.id} downloads prediction`,
       future
     );
     setDownloadCharts((prev) => ({
       ...prev,
-      [chartId(subject, "future")]: chartDataset,
+      [chartId(pkg, "future")]: chartDataset,
     }));
   }
 
@@ -212,91 +217,59 @@ export default function App() {
 
   return (
     <>
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        <h1>enter a python package</h1>
-        <div style={{ display: "flex", flexDirection: "row", gap: 3 }}>
-          <input
-            style={{ flexGrow: 1, fontSize: "1.3em" }}
-            value={repoInput}
-            onChange={(e) => setRepoInput(e.target.value)}
-            type="text"
-            placeholder="enter package (ie, numpy, keras)"
-            onKeyDown={(e) => {
-              if (loadStatus === "loading") {
-                return;
-              }
-              if (e.key === "Enter") {
-                void loadPackage();
-              }
-            }}
-          />
-          <button
-            disabled={loadStatus === "loading"}
-            onClick={() => {
+      <h1>enter a python package</h1>
+      <div style={{ display: "flex", flexDirection: "row", gap: 3 }}>
+        <input
+          style={{ flexGrow: 1, fontSize: "1.3em" }}
+          value={repoInput}
+          onChange={(e) => setRepoInput(e.target.value)}
+          type="text"
+          placeholder="enter package (ie, numpy, keras)"
+          onKeyDown={(e) => {
+            if (loadStatus === "loading") {
+              return;
+            }
+            if (e.key === "Enter") {
               void loadPackage();
-            }}
-          >
-            🔎
-          </button>
-        </div>
-        {errorMsg && <div className="error">{errorMsg}</div>}
-        <div style={{ display: "flex", flexDirection: "row", gap: 8 }}>
-          {subjects.map((subject) => {
-            return (
-              <div key={subject.id} className="subjectCard">
-                <b>{subject.id}</b>
-                <div className="subtle">
-                  <i className="ri-github-fill"></i>
-                  {subject.repo ? (
-                    <a
-                      target="_blank"
-                      href={`https://github.com/${subject.repo[0]}/${subject.repo[1]}`}
-                    >
-                      {subject.repo[0]}/{subject.repo[1]}
-                    </a>
-                  ) : (
-                    <i>unknown</i>
-                  )}
-                </div>
-                {subject.repo ? (
-                  <button className="subtle" onClick={() => {}}>
-                    org stars: {subject.repo[0]}
-                  </button>
-                ) : (
-                  <br />
-                )}
-                <button
-                  style={{
-                    position: "absolute",
-                    right: 4,
-                    top: 4,
-                    boxSizing: "border-box",
-                  }}
-                  onClick={() => removePackage(subject)}
-                >
-                  x
-                </button>
-              </div>
-            );
-          })}
-        </div>
-        {orgStarChartsArr.length > 0 && (
-          <OrgStarsChart datasets={orgStarChartsArr} />
-        )}
-        {starChartsArr.length > 0 && (
-          <GithubStarsChart datasets={starChartsArr} />
-        )}
-
-        {downloadChartsArr.length > 0 && (
-          <PepyDownloadsChart datasets={downloadChartsArr} />
-        )}
+            }
+          }}
+        />
+        <button
+          disabled={loadStatus === "loading"}
+          onClick={() => {
+            void loadPackage();
+          }}
+        >
+          🔎
+        </button>
       </div>
-      {/* <div style={{ marginTop: 170 }}>
-        Orgs
-        {orgStarChartsArr.length > 0 && (
-          <OrgStarsChart datasets={orgStarChartsArr} />
-        )}
-      </div> */}
+      {errorMsg && (
+        <div className="error">
+          {errorMsg}
+          <button onClick={() => setError(null)}>x</button>
+        </div>
+      )}
+      <div style={{ display: "flex", flexDirection: "row", gap: 8 }}>
+        {subjects.map((subject) => {
+          return (
+            <PyPackageCard
+              key={subject.id}
+              subject={subject}
+              onRemove={removePackage}
+            />
+          );
+        })}
+      </div>
+      {orgStarChartsArr.length > 0 && (
+        <OrgStarsChart datasets={orgStarChartsArr} />
+      )}
+      {starChartsArr.length > 0 && (
+        <GithubStarsChart datasets={starChartsArr} />
+      )}
+
+      {downloadChartsArr.length > 0 && (
+        <PepyDownloadsChart datasets={downloadChartsArr} />
+      )}
     </>
   );
 }
