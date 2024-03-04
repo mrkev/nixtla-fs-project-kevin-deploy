@@ -1,21 +1,15 @@
-import { githubHeadersGetLastPage } from "./common/api";
-import { range } from "./common/utils";
-import { GH_TOKEN } from "./data/github";
-import { exhaustive } from "./utils";
+import { githubHeadersGetLastPage, DEFAULT_PER_PAGE } from "./stars";
+import { range } from "../common/utils";
+import { GH_TOKEN } from "./github";
+import { exhaustive } from "../utils";
 
-const repos = async (res: Response) => {
-  const json = await res.json();
-  if (Array.isArray(json)) {
-    return json;
-  } else {
-    return [];
-  }
-};
-
-const PER_PAGE = 1;
-async function fetchRepos(src: "orgs" | "users", name: string, page: number) {
+export async function getRepos(
+  src: "orgs" | "users",
+  name: string,
+  page: number
+) {
   const req = await fetch(
-    `https://api.github.com/${src}/${name}/repos?type=all&page=${page}&per_page=${PER_PAGE}`,
+    `https://api.github.com/${src}/${name}/repos?type=all&page=${page}&per_page=${DEFAULT_PER_PAGE}`,
     {
       headers: {
         Authorization: `token ${GH_TOKEN}`,
@@ -36,7 +30,7 @@ async function fetchReposPaginated(
 ) {
   const results = await Promise.all(
     range(1, lastPage).map((i) =>
-      fetchRepos(src, name, i).then((res) => {
+      getRepos(src, name, i).then((res) => {
         return (Array.isArray(res.json) ? res.json : []) as Array<any>;
       })
     )
@@ -46,10 +40,9 @@ async function fetchReposPaginated(
 }
 
 export async function getAllRepos(name: string) {
-  // TODO: swithc to api to acutally get all
   const [orgRes, userRes] = await Promise.all([
-    fetchRepos("orgs", name, 1),
-    fetchRepos("users", name, 1),
+    getRepos("orgs", name, 1),
+    getRepos("users", name, 1),
   ]);
 
   const src = Array.isArray(orgRes.json)

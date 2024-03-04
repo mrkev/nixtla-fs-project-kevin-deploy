@@ -1,50 +1,30 @@
-import {
-  CategoryScale,
-  ChartData,
-  Chart as ChartJS,
-  Legend,
-  LineElement,
-  LinearScale,
-  PointElement,
-  TimeScale,
-  Title,
-  Tooltip,
-} from "chart.js";
-import "chartjs-adapter-dayjs-4/dist/chartjs-adapter-dayjs-4.esm";
+import type { ChartData } from "chart.js";
 import { useMemo, useState } from "react";
 import { Line } from "react-chartjs-2";
 import "./App.css";
 import { PyPackageCard } from "./PyPackageCard";
-import { LineDataset, chartDisplayOptions, datasetOfEntries } from "./chart";
+import {
+  ChartMap,
+  LineDataset,
+  chartDisplayOptions,
+  chartId,
+  datasetOfEntries,
+} from "./chart";
 import { predictDays } from "./data/nixtla";
 import { GhOrg } from "./state/GhOrg";
 import { PyPackage } from "./state/PyPackage";
+import { ReactiveValue, useReactive } from "./state/ReactiveValue";
 import { arrayRemove, errMsg } from "./utils";
 
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Title,
-  Tooltip,
-  Legend,
-  TimeScale
-);
-
-const chartId = (subject: PyPackage | GhOrg, chart: "current" | "future") =>
-  `${subject.id}.${chart}`;
-
-type ChartMap = Record<string, LineDataset>;
+const pkgState = ReactiveValue.of<PyPackage[]>([]);
+const orgsState = ReactiveValue.of<GhOrg[]>([]);
 
 export default function App() {
   const [loadStatus, setLoadStatus] = useState<"loading" | "idle">();
   const [errorMsg, setError] = useState<string | null>(null);
-  const [subjects, setSubjects] = useState<PyPackage[]>([]);
-  const [orgs, setOrgs] = useState<GhOrg[]>([]);
-
-  const [repoInput, setRepoInput] = useState("numpy");
-
+  const [pkgs, setPkgs] = useReactive<PyPackage[]>(pkgState);
+  const [orgs, setOrgs] = useReactive<GhOrg[]>(orgsState);
+  const [repoInput, setRepoInput] = useState("");
   const [orgStarCharts, setOrgStarCharts] = useState<ChartMap>({});
   const [starCharts, setStarCharts] = useState<ChartMap>({});
   const [downloadCharts, setDownloadCharts] = useState<ChartMap>({});
@@ -56,16 +36,19 @@ export default function App() {
       console.error("error", stars);
       setError(`Could not fetch github stars! Error: ${errMsg(stars)}`);
       return;
+    } else if (pkgState.get().indexOf(pkg) < 0) {
+      // we no longer want to show this
+      return;
     }
 
     const starsDataset = datasetOfEntries(`${pkg.id} stars`, stars);
+
     setStarCharts((prev) => ({
       ...prev,
       [chartId(pkg, "current")]: starsDataset,
     }));
 
     if (stars[stars.length - 1].count > 40_000) {
-      // TODO: max width
       setError(
         `Repos >40,000 stars don't load predictions. Only the first 40k stars events can be accessed. Without recent data, it's impossible to create an accurate prediction.`
       );
@@ -78,6 +61,9 @@ export default function App() {
       setError(
         `Could not predict future github stars! Error: ${errMsg(future)}`
       );
+      return;
+    } else if (pkgState.get().indexOf(pkg) < 0) {
+      // we no longer want to show this
       return;
     }
 
@@ -95,6 +81,9 @@ export default function App() {
       console.error(downloads);
       setError(`Could not fetch downloads! Error: ${errMsg(downloads)}`);
       return;
+    } else if (pkgState.get().indexOf(pkg) < 0) {
+      // we no longer want to show this
+      return;
     }
 
     const dlsDataset = datasetOfEntries(`${pkg.id} downloads`, downloads);
@@ -108,6 +97,9 @@ export default function App() {
     if (future instanceof Error) {
       console.error(future);
       setError(`Could not predict future downloads! Error: ${errMsg(future)}`);
+      return;
+    } else if (pkgState.get().indexOf(pkg) < 0) {
+      // we no longer want to show this
       return;
     }
 
@@ -128,14 +120,16 @@ export default function App() {
       const pkg = repoInput;
       setRepoInput("");
       const subject = await PyPackage.fetch(pkg);
-      setSubjects((prev) => [...prev, subject]);
+      setPkgs((prev) => [...prev, subject]);
       setLoadStatus("idle");
 
-      void loadStars(subject);
-      void loadDownloads(subject);
-      if (subject.org != null) {
-        void loadOrg(subject.org);
-      }
+      setTimeout(() => {
+        void loadStars(subject);
+        void loadDownloads(subject);
+        if (subject.org != null) {
+          void loadOrg(subject.org);
+        }
+      }, 0);
     } catch (e) {
       setError(errMsg(e));
       setLoadStatus("idle");
@@ -156,6 +150,13 @@ export default function App() {
       return;
     }
 
+    // Before we add the org, confirm we still want to show it
+    const wantOrgs = new Set(pkgState.get().map((s) => s.org));
+    if (!wantOrgs.has(org.id)) {
+      // we no longer want to show this org
+      return;
+    }
+
     setOrgs((prev) => [...prev, org]);
 
     // Chart the current stars
@@ -163,6 +164,9 @@ export default function App() {
     if (stars instanceof Error) {
       console.error("error", stars);
       setError(`Could not fetch github org stars! Error: ${errMsg(stars)}`);
+      return;
+    } else if (orgsState.get().indexOf(org) < 0) {
+      // we no longer want to show this org
       return;
     }
 
@@ -173,13 +177,15 @@ export default function App() {
     }));
 
     // Chart future stars
-    console.log("fetching future");
     const future = await predictDays(90, stars);
     if (future instanceof Error) {
       console.error(future);
       setError(
         `Could not predict future github org stars! Error: ${errMsg(future)}`
       );
+      return;
+    } else if (orgsState.get().indexOf(org) < 0) {
+      // we no longer want to show this org
       return;
     }
 
@@ -191,7 +197,7 @@ export default function App() {
   }
 
   function removePackage(subject: PyPackage) {
-    const newarr = arrayRemove(subject, subjects);
+    const newarr = arrayRemove(subject, pkgs);
     delete starCharts[chartId(subject, "current")];
     delete starCharts[chartId(subject, "future")];
     delete downloadCharts[chartId(subject, "current")];
@@ -208,7 +214,7 @@ export default function App() {
       }
     }
 
-    setSubjects(newarr);
+    setPkgs(newarr);
   }
 
   const starChartsArr = Object.values(starCharts);
@@ -224,7 +230,7 @@ export default function App() {
           value={repoInput}
           onChange={(e) => setRepoInput(e.target.value)}
           type="text"
-          placeholder="enter package (ie, numpy, keras)"
+          placeholder="enter package (ie, nixtla, numpy, keras...)"
           onKeyDown={(e) => {
             if (loadStatus === "loading") {
               return;
@@ -250,7 +256,7 @@ export default function App() {
         </div>
       )}
       <div style={{ display: "flex", flexDirection: "row", gap: 8 }}>
-        {subjects.map((subject) => {
+        {pkgs.map((subject) => {
           return (
             <PyPackageCard
               key={subject.id}

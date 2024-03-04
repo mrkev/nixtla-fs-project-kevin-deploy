@@ -24,20 +24,10 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
         rewrite(path) {
-          console.log(path);
           const res = path.replace(/^\/pepy/, "/api");
           return res;
         },
       },
-      // "/nixtla/": {
-      //   target: "http://api.pepy.tech/",
-      //   changeOrigin: true,
-      //   secure: false,
-      //   rewrite(path) {
-      //     const res = path.replace(/^\/pepy/, "/api");
-      //     return res;
-      //   },
-      // },
     },
   },
 });

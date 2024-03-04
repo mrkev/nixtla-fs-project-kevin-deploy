@@ -85,7 +85,6 @@ export async function predictDays(
   try {
     const result = await predictSeries({ freq: "D", fh: days }, entries);
     if (result.data == null) {
-      console.log(result);
       return new Error(result.message);
     }
 

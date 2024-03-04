@@ -1,11 +1,12 @@
-// from: https://github.com/star-history/star-history
+// based off: https://github.com/star-history/star-history
 
 import axios from "axios";
-import { range, getDateString } from "./utils";
-import { DateEntry, ascendingEntrySort } from "../data/DateEntry";
-import { GH_TOKEN } from "../data/github";
+import { range, getDateString } from "../common/utils";
+import { DateEntry, ascendingEntrySort } from "./DateEntry";
+import { GH_TOKEN } from "./github";
 
-const DEFAULT_PER_PAGE = 30;
+export const DEFAULT_PER_PAGE = 60;
+const MAX_NUM_PAGES_STARS = 10;
 
 async function getRepoStargazers(repo: string, page: number) {
   const url = `https://api.github.com/repos/${repo}/stargazers?per_page=${DEFAULT_PER_PAGE}&page=${page}`;
@@ -30,15 +31,14 @@ async function getRepoStargazersCount(repo: string) {
   return data.stargazers_count;
 }
 
-const MAX_REQ_AMOUNT = 10;
 function pagesToFetch(totalPages: number) {
-  if (totalPages < MAX_REQ_AMOUNT) {
+  if (totalPages < MAX_NUM_PAGES_STARS) {
     return range(1, totalPages);
   }
 
   const pageNumbers = new Set<number>();
-  range(1, MAX_REQ_AMOUNT).map((i) => {
-    pageNumbers.add(Math.round((i * totalPages) / MAX_REQ_AMOUNT) - 1);
+  range(1, MAX_NUM_PAGES_STARS).map((i) => {
+    pageNumbers.add(Math.round((i * totalPages) / MAX_NUM_PAGES_STARS) - 1);
   });
 
   // always include first page
@@ -138,4 +138,3 @@ export async function getRepoStarRecords(
 
   return starRecords;
 }
-(window as any).getRepoStarRecords = getRepoStarRecords;

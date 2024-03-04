@@ -1,5 +1,5 @@
-import { getAllRepos } from "../api2";
-import { getRepoStarRecords } from "../common/api";
+import { getAllRepos } from "./repos";
+import { getRepoStarRecords } from "./stars";
 import { DateEntry, DateLinkedEntry, extrapolateCounts } from "./DateEntry";
 
 export const GH_TOKEN = import.meta.env.VITE_GH_TOKEN;
@@ -30,7 +30,6 @@ async function getAllOrgData(
     })
   );
 
-  // console.log(org, results.slice(0, 2));
   return results;
 }
 
@@ -71,42 +70,6 @@ export async function getAggregatedOrgStarCounts(
     starHistory: asLinkedList(starHistory),
   }));
 
-  // bucketize by date
-  // date -> entry[]
-  // const aggregated = new Map<number, { repo: string; count: number }[]>();
-  // for (const repo of allData) {
-  //   for (const entry of repo.starHistory) {
-  //     let bucket = aggregated.get(entry.date);
-  //     if (bucket == null) {
-  //       bucket = [];
-  //       aggregated.set(entry.date, bucket);
-  //     }
-  //     bucket.push({
-  //       repo: repo.repo,
-  //       count: entry.count,
-  //     });
-  //   }
-  // }
-  // const dates = [...aggregated.entries()].sort(function ([adate], [bdate]) {
-  //   return adate - bdate;
-  // });
-  // // repo => count
-  // const repoState = new Map<string, number>();
-  // // date => count
-  // const timeline = Array<{ date: number; count: number }>();
-  // for (const [date, entries] of dates) {
-  //   // update state
-  //   for (const entry of entries) {
-  //     repoState.set(entry.repo, entry.count);
-  //   }
-  //   let total = 0;
-  //   for (const [repo, count] of repoState.entries()) {
-  //     console.log("at", date, "adding", count, "from", repo);
-  //     total += count;
-  //   }
-  //   console.log("at", date, "total was", total);
-  //   timeline.push({ date, count: total });
-  // }
   const datesSet = new Set<number>();
   for (const repo of orgData) {
     for (const entry of repo.starHistory) {
@@ -155,7 +118,6 @@ export async function getAggregatedOrgStarCounts(
         }
       }
     }
-    // console.log("at", date, "total was", total);
     timeline.push({ date, count: total });
   }
 

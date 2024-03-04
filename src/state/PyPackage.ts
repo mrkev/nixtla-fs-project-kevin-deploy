@@ -1,47 +1,51 @@
-import { getRepoStarRecords } from "../common/api";
+import { getRepoStarRecords } from "../data/stars";
 import { DateEntry } from "../data/DateEntry";
 import { fetchPepyDownloadData } from "../data/pepy";
 import { PackageResponse, infoForPackage } from "../data/pypi";
 import { ReactiveValue } from "./ReactiveValue";
 
+function repoOfPyPIInfo(
+  pypiInfo: PackageResponse
+): readonly [string, string] | null {
+  const repoURL =
+    pypiInfo.info.project_urls["Source"] ??
+    pypiInfo.info.project_urls["Homepage"];
+  if (typeof repoURL !== "string") {
+    console.warn("no source");
+    return null;
+  }
+
+  const url = new URL(repoURL);
+  if (url.hostname !== "github.com") {
+    console.warn("not github");
+    return null;
+  }
+
+  const repoRegex = new RegExp("[^/]+/[^/]+", "gi");
+  const repoResult = repoRegex.exec(url.pathname);
+  if (repoResult == null) {
+    console.warn("no repo");
+    return null;
+  }
+
+  const [org, repo] = repoResult[0].split("/");
+  return [org, repo];
+}
+
 export class PyPackage {
-  public readonly repo: readonly [string, string] | null = null;
   public readonly currentStars = ReactiveValue.of<number | null>(null);
 
   static async fetch(pkg: string) {
-    const info = await infoForPackage(pkg);
-    return new PyPackage(pkg, info);
+    const pypiInfo = await infoForPackage(pkg);
+    const repo = repoOfPyPIInfo(pypiInfo);
+    return new PyPackage(pkg, pypiInfo, repo);
   }
 
   private constructor(
     public readonly id: string,
-    public readonly pypiInfo: PackageResponse
-  ) {
-    const repoURL =
-      this.pypiInfo.info.project_urls["Source"] ??
-      this.pypiInfo.info.project_urls["Homepage"];
-    if (typeof repoURL !== "string") {
-      console.warn("no source");
-      return;
-    }
-
-    const url = new URL(repoURL);
-    if (url.hostname !== "github.com") {
-      console.warn("not github");
-      return;
-    }
-
-    const repoRegex = new RegExp("[^/]+/[^/]+", "gi");
-    const repoResult = repoRegex.exec(url.pathname);
-    if (repoResult == null) {
-      console.warn("no repo");
-      return;
-    }
-
-    const [org, repo] = repoResult[0].split("/");
-    console.log(repoResult[0]);
-    this.repo = [org, repo];
-  }
+    public readonly pypiInfo: PackageResponse,
+    public readonly repo: readonly [string, string] | null
+  ) {}
 
   get org() {
     return this.repo?.[0] ?? null;

@@ -1,6 +1,17 @@
 import { ChartDataset, ChartOptions } from "chart.js";
 import randomcolor from "randomcolor";
 import { DateEntry } from "./data/DateEntry";
+import { GhOrg } from "./state/GhOrg";
+import { PyPackage } from "./state/PyPackage";
+
+export type ChartMap = Record<string, LineDataset>;
+
+export type LineDataset = ChartDataset<"line", { x: number; y: number }[]>;
+
+export const chartId = (
+  subject: PyPackage | GhOrg,
+  chart: "current" | "future"
+) => `${subject.id}.${chart}`;
 
 export const chartDisplayOptions = (title: string): ChartOptions<"line"> => ({
   responsive: true,
@@ -32,7 +43,6 @@ export const chartDisplayOptions = (title: string): ChartOptions<"line"> => ({
   },
 });
 
-export type LineDataset = ChartDataset<"line", { x: number; y: number }[]>;
 export function datasetOfEntries(
   label: string,
   data: DateEntry[]

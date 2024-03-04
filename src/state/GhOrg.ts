@@ -1,4 +1,4 @@
-import { getAllRepos } from "../api2";
+import { getAllRepos } from "../data/repos";
 import { DateEntry } from "../data/DateEntry";
 import { getAggregatedOrgStarCounts } from "../data/github";
 
