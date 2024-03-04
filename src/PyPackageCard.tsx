@@ -14,9 +14,7 @@ export function PyPackageCard({
 
   return (
     <div key={subject.id} className="subjectCard">
-      <div>
-        <b>{subject.id}</b>
-      </div>
+      <b>{subject.id}</b>
       <div>
         <span className="subtle">
           <i

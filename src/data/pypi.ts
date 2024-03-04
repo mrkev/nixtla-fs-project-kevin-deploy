@@ -3,7 +3,7 @@ import z from "zod";
 // note: incomplete definition
 const PackageResponse = z.object({
   info: z.object({
-    project_urls: z.record(z.string()),
+    project_urls: z.union([z.record(z.string()), z.null()]),
   }),
 });
 const PackageResponseFailure = z.object({

@@ -255,7 +255,14 @@ export default function App() {
           <button onClick={() => setError(null)}>x</button>
         </div>
       )}
-      <div style={{ display: "flex", flexDirection: "row", gap: 8 }}>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "row",
+          gap: 8,
+          flexWrap: "wrap",
+        }}
+      >
         {pkgs.map((subject) => {
           return (
             <PyPackageCard

@@ -3,13 +3,15 @@ import { DateEntry } from "../data/DateEntry";
 import { fetchPepyDownloadData } from "../data/pepy";
 import { PackageResponse, infoForPackage } from "../data/pypi";
 import { ReactiveValue } from "./ReactiveValue";
+import { GHRepo } from "../data/github";
 
 function repoOfPyPIInfo(
   pypiInfo: PackageResponse
 ): readonly [string, string] | null {
   const repoURL =
-    pypiInfo.info.project_urls["Source"] ??
-    pypiInfo.info.project_urls["Homepage"];
+    pypiInfo.info.project_urls != null &&
+    (pypiInfo.info.project_urls["Source"] ??
+      pypiInfo.info.project_urls["Homepage"]);
   if (typeof repoURL !== "string") {
     console.warn("no source");
     return null;
@@ -52,26 +54,11 @@ export class PyPackage {
   }
 
   public async loadStars(): Promise<DateEntry[] | Error> {
-    const repoURL =
-      this.pypiInfo.info.project_urls["Source"] ??
-      this.pypiInfo.info.project_urls["Homepage"];
-    if (typeof repoURL !== "string") {
-      return new Error("no source");
-    }
-
-    const url = new URL(repoURL);
-    if (url.hostname !== "github.com") {
-      return new Error("not github");
-    }
-
-    const repoRegex = new RegExp("[^/]+/[^/]+", "gi");
-    const repoResult = repoRegex.exec(url.pathname);
-    if (repoResult == null) {
+    if (this.repo == null) {
       return new Error("no repo");
     }
-
     try {
-      const repo = repoResult[0];
+      const repo = `${this.repo[0]}/${this.repo[1]}` as GHRepo;
       const stars = await getRepoStarRecords(repo, 10);
       const total = stars[stars.length - 1].count;
       this.currentStars.set(total);

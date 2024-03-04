@@ -3,12 +3,12 @@
 import axios from "axios";
 import { range, getDateString } from "../common/utils";
 import { DateEntry, ascendingEntrySort } from "./DateEntry";
-import { GH_TOKEN } from "./github";
+import { GHRepo, GH_TOKEN } from "./github";
 
 export const DEFAULT_PER_PAGE = 60;
 const MAX_NUM_PAGES_STARS = 10;
 
-async function getRepoStargazers(repo: string, page: number) {
+async function getRepoStargazers(repo: GHRepo, page: number) {
   const url = `https://api.github.com/repos/${repo}/stargazers?per_page=${DEFAULT_PER_PAGE}&page=${page}`;
   return axios.get(url, {
     headers: {
@@ -66,7 +66,7 @@ export function githubHeadersGetLastPage(headers: Record<string, string>) {
 }
 
 export async function getRepoStarRecords(
-  repo: string,
+  repo: GHRepo,
   maxRequestAmount: number
 ): Promise<DateEntry[]> {
   const firstPage = await getRepoStargazers(repo, 1);
