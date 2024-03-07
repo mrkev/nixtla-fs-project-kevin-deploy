@@ -1,6 +1,5 @@
 // based off: https://github.com/star-history/star-history
 
-import axios from "axios";
 import { getDateString, range } from "../common/utils";
 import { DateEntry, ascendingEntrySort } from "./DateEntry";
 import { GHRepo } from "./github";
@@ -10,23 +9,29 @@ const MAX_NUM_PAGES_STARS = 10;
 
 async function getRepoStargazers(repo: GHRepo, page: number) {
   const url = `/github/repos/${repo}/stargazers?per_page=${DEFAULT_PER_PAGE}&page=${page}`;
-  return axios.get(url, {
+  const res = await fetch(url, {
     headers: {
       Accept: "application/vnd.github.v3.star+json",
       "X-GitHub-Api-Version": "2022-11-28",
     },
   });
+
+  return {
+    json: await res.json(),
+    headers: Object.fromEntries(res.headers.entries()),
+  };
 }
 
 async function getRepoStargazersCount(repo: string) {
-  const { data } = await axios.get(`/github/repos/${repo}`, {
+  const res = await fetch(`/github/repos/${repo}`, {
     headers: {
       Accept: "application/vnd.github.v3.star+json",
       "X-GitHub-Api-Version": "2022-11-28",
     },
   });
 
-  return data.stargazers_count;
+  const json = await res.json();
+  return json.stargazers_count;
 }
 
 function pagesToFetch(totalPages: number) {
@@ -81,7 +86,7 @@ export async function getRepoStarRecords(
     pageCount = Number(lastMatch[1]);
   }
 
-  if (pageCount === 1 && firstPage?.data?.length === 0) {
+  if (pageCount === 1 && firstPage?.json?.length === 0) {
     console.warn("no stars");
     return [];
   }
@@ -101,17 +106,17 @@ export async function getRepoStarRecords(
       starred_at: string;
     }[] = [];
     resArray.map((res) => {
-      const { data } = res;
-      starRecordsData.push(...data);
+      const { json } = res;
+      starRecordsData.push(...json);
     });
     for (let i = 0; i < starRecordsData.length; ) {
       starRecordsMap.set(getDateString(starRecordsData[i].starred_at), i + 1);
       i += Math.floor(starRecordsData.length / maxRequestAmount) || 1;
     }
   } else {
-    resArray.map(({ data }, index) => {
-      if (data.length > 0) {
-        const starRecord = data[0];
+    resArray.map(({ json }, index) => {
+      if (json.length > 0) {
+        const starRecord = json[0];
         starRecordsMap.set(
           getDateString(starRecord.starred_at),
           DEFAULT_PER_PAGE * (requestPages[index] - 1)

@@ -75,7 +75,7 @@ server.get(
 );
 
 // Run the server!
-server.listen({ port: 3000, host: "0.0.0.0" }, (err, address) => {
+server.listen({ port: 3000, host: "::" }, (err, address) => {
   console.error(err);
   console.log(address);
 });

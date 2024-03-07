@@ -7,7 +7,7 @@ export async function getRepos(
   name: string,
   page: number
 ) {
-  const req = await fetch(
+  const res = await fetch(
     `/github/${src}/${name}/repos?type=all&page=${page}&per_page=${DEFAULT_PER_PAGE}`,
     {
       headers: {
@@ -16,8 +16,8 @@ export async function getRepos(
     }
   );
   return {
-    json: await req.json(),
-    headers: Object.fromEntries(req.headers.entries()),
+    json: await res.json(),
+    headers: Object.fromEntries(res.headers.entries()),
   };
 }
 
