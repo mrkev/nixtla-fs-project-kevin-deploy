@@ -61,12 +61,10 @@ export async function predictSeries(
     finetune_loss,
   });
 
-  const response = await fetch("https://dashboard.nixtla.io/api/timegpt", {
+  const response = await fetch("/nixtla", {
     method: "POST",
     headers: {
       Accept: "application/json",
-      Authorization:
-        "Bearer zaeqhO8zBQh18QKUVAIoTOkWuwKONyHOG4C9MGBezvonPYJXzLlZSWTqMPtttYLQNuZpmLJvWmGSBpd7TeUMTnYWg6TNGzAny3w3tQb3TQj1MegQoip3v2b3rXqktBLUfTzZ3j0qFYV5xgE093mXQPdBcnDtn9wp3YTwD6xmH79EatbG1bwcUnCyqxkmHVxeSRBFNTlz5kcQjA8S6Mx7zTgQdRZ1cm7sgIHwjRjowrlMZkn0yj1YyJ5vsc1MdDVv",
       "Content-Type": "application/json",
     },
     body: body,

@@ -224,7 +224,13 @@ export default function App() {
   return (
     <>
       <h1>enter a python package</h1>
-      <div style={{ display: "flex", flexDirection: "row", gap: 3 }}>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "row",
+          gap: 3,
+        }}
+      >
         <input
           style={{ flexGrow: 1, fontSize: "1.3em" }}
           value={repoInput}

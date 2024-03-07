@@ -4,24 +4,22 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite --host",
+    "dev": "concurrently \"vite --host\" \"tsx server.ts\"",
     "build": "tsc && vite build",
     "lint": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
-    "preview": "vite preview"
+    "prod": "tsx server.ts"
   },
   "dependencies": {
-    "@octokit/rest": "^20.0.2",
+    "@fastify/http-proxy": "^9.4.0",
+    "@fastify/static": "^7.0.1",
     "axios": "^1.6.7",
     "chart.js": "^4.4.1",
-    "chart.xkcd": "^1.1.15",
-    "chart.xkcd-react": "^0.0.6",
     "chartjs-adapter-dayjs-4": "^1.0.4",
     "dayjs": "^1.11.10",
-    "faker": "^6.6.6",
-    "github-graphql-api": "^1.0.6",
-    "github-star-history": "^1.1.17",
+    "dotenv": "^16.4.5",
+    "fastify": "^4.26.2",
     "idb": "^8.0.0",
-    "lodash": "^4.17.21",
+    "node-fetch": "^3.3.2",
     "randomcolor": "^0.6.2",
     "react": "^18.2.0",
     "react-chartjs-2": "^5.2.0",
@@ -30,16 +28,18 @@
     "zod": "^3.22.4"
   },
   "devDependencies": {
-    "@faker-js/faker": "^8.4.1",
+    "@types/node": "^20.11.25",
     "@types/randomcolor": "^0.5.9",
     "@types/react": "^18.2.14",
     "@types/react-dom": "^18.2.6",
     "@typescript-eslint/eslint-plugin": "^5.61.0",
     "@typescript-eslint/parser": "^5.61.0",
     "@vitejs/plugin-react": "^4.0.1",
+    "concurrently": "^8.2.2",
     "eslint": "^8.44.0",
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-react-refresh": "^0.4.1",
+    "tsx": "^4.7.1",
     "typescript": "^5.0.2",
     "vite": "^4.4.0"
   }

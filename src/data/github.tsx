@@ -2,8 +2,6 @@ import { getAllRepos } from "./repos";
 import { getRepoStarRecords } from "./stars";
 import { DateEntry, DateLinkedEntry, extrapolateCounts } from "./DateEntry";
 
-export const GH_TOKEN = import.meta.env.VITE_GH_TOKEN;
-
 export type GHRepo = `${string}/${string}`;
 
 async function getAllOrgData(

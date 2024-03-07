@@ -1,29 +1,27 @@
 // based off: https://github.com/star-history/star-history
 
 import axios from "axios";
-import { range, getDateString } from "../common/utils";
+import { getDateString, range } from "../common/utils";
 import { DateEntry, ascendingEntrySort } from "./DateEntry";
-import { GHRepo, GH_TOKEN } from "./github";
+import { GHRepo } from "./github";
 
 export const DEFAULT_PER_PAGE = 60;
 const MAX_NUM_PAGES_STARS = 10;
 
 async function getRepoStargazers(repo: GHRepo, page: number) {
-  const url = `https://api.github.com/repos/${repo}/stargazers?per_page=${DEFAULT_PER_PAGE}&page=${page}`;
+  const url = `/github/repos/${repo}/stargazers?per_page=${DEFAULT_PER_PAGE}&page=${page}`;
   return axios.get(url, {
     headers: {
       Accept: "application/vnd.github.v3.star+json",
-      Authorization: `token ${GH_TOKEN}`,
       "X-GitHub-Api-Version": "2022-11-28",
     },
   });
 }
 
 async function getRepoStargazersCount(repo: string) {
-  const { data } = await axios.get(`https://api.github.com/repos/${repo}`, {
+  const { data } = await axios.get(`/github/repos/${repo}`, {
     headers: {
       Accept: "application/vnd.github.v3.star+json",
-      Authorization: `token ${GH_TOKEN}`,
       "X-GitHub-Api-Version": "2022-11-28",
     },
   });

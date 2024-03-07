@@ -1,7 +1,6 @@
-import { githubHeadersGetLastPage, DEFAULT_PER_PAGE } from "./stars";
 import { range } from "../common/utils";
-import { GH_TOKEN } from "./github";
 import { exhaustive } from "../utils";
+import { DEFAULT_PER_PAGE, githubHeadersGetLastPage } from "./stars";
 
 export async function getRepos(
   src: "orgs" | "users",
@@ -9,10 +8,9 @@ export async function getRepos(
   page: number
 ) {
   const req = await fetch(
-    `https://api.github.com/${src}/${name}/repos?type=all&page=${page}&per_page=${DEFAULT_PER_PAGE}`,
+    `/github/${src}/${name}/repos?type=all&page=${page}&per_page=${DEFAULT_PER_PAGE}`,
     {
       headers: {
-        Authorization: `token ${GH_TOKEN}`,
         "X-GitHub-Api-Version": "2022-11-28",
       },
     }
