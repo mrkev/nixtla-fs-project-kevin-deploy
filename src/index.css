@@ -52,6 +52,14 @@ h1 {
   line-height: 1;
 }
 
+h2 {
+  font-size: 1.1em;
+}
+
+.spacer {
+  flex-grow: 1;
+}
+
 button {
   border-radius: 3px;
   border: 1px solid rgb(133, 133, 133);
@@ -82,10 +90,39 @@ button[disabled] {
     color: #213547;
     background-color: #ffffff;
   }
+  a {
+    color: #747bff;
+  }
   a:hover {
     color: #747bff;
   }
   button {
     background-color: #f9f9f9;
+  }
+}
+
+header {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+footer {
+  color: gray;
+  padding-bottom: 12px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+}
+
+header a,
+footer a {
+  color: gray;
+}
+
+@media (width <= 470px) {
+  .onWide {
+    display: none;
   }
 }

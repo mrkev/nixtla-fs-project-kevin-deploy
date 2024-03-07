@@ -117,7 +117,7 @@ export default function App() {
     setLoadStatus("loading");
     setError(null);
     try {
-      const pkg = repoInput;
+      const pkg = repoInput.toLowerCase();
       setRepoInput("");
       const subject = await PyPackage.fetch(pkg);
       setPkgs((prev) => [...prev, subject]);
@@ -223,7 +223,68 @@ export default function App() {
 
   return (
     <>
-      <h1>enter a python package</h1>
+      <header>
+        <h1
+          style={{
+            display: "inline-flex",
+            gap: 8,
+            position: "relative",
+            top: "-1px",
+          }}
+        >
+          <img src="/python.svg" width={16}></img>{" "}
+          <span className="onWide">
+            Python Package Stats <small style={{ color: "gray" }}>v0.1.0</small>
+          </span>
+        </h1>
+        <div className="spacer"></div>
+        <a href="http://aykev.dev/" target="_blank">
+          author
+        </a>
+        {"·"}
+        <a href="https://twitter.com/aykev" target="_blank">
+          <i className="ri-twitter-line"></i>
+        </a>
+      </header>
+
+      <details
+        style={{
+          textAlign: "left",
+          margin: "-10px 0px 80px 22px",
+          fontSize: "0.825em",
+        }}
+      >
+        <summary style={{ color: "gray", cursor: "pointer" }}>
+          How to use this site?
+        </summary>
+        <p>
+          This site is an alternative to{" "}
+          <a href="https://star-history.com/blog/how-to-use-github-star-history">
+            Star History
+          </a>
+          , with some extra goodies. It shows you 3 key pieces of historical
+          data about open source python packages:
+        </p>
+        <ul>
+          <li>Github star history</li>
+          <li>Github org aggreate star history</li>
+          <li>
+            Downloads on <a href="https://www.pepy.tech/">Pepy</a>
+          </li>
+        </ul>
+        <p>
+          For each of these, you can see historical trends. Moreover, it uses{" "}
+          <a href="https://docs.nixtla.io/">TimeGPT</a> to show the predicted
+          trend into the future.
+        </p>
+        <p>
+          This information can be useful when deciding to use a package in your
+          project, or drop it in favour of something else. Load multiple
+          packages at a time and see how they compare!
+        </p>
+      </details>
+      <b>enter a python package</b>
+
       <div
         style={{
           display: "flex",
@@ -232,7 +293,7 @@ export default function App() {
         }}
       >
         <input
-          style={{ flexGrow: 1, fontSize: "1.3em" }}
+          style={{ flexGrow: 1, fontSize: "1.3em", padding: "12px 8px" }}
           value={repoInput}
           onChange={(e) => setRepoInput(e.target.value)}
           type="text"
@@ -285,10 +346,21 @@ export default function App() {
       {starChartsArr.length > 0 && (
         <GithubStarsChart datasets={starChartsArr} />
       )}
-
       {downloadChartsArr.length > 0 && (
         <PepyDownloadsChart datasets={downloadChartsArr} />
       )}
+      <div className="spacer"></div>
+      <footer>
+        2024
+        {"·"}
+        <a href="http://aykev.dev/" target="_blank">
+          Kevin Chavez
+        </a>
+        {"·"}
+        <a href="https://twitter.com/aykev" target="_blank">
+          <i className="ri-twitter-line"></i>
+        </a>
+      </footer>
     </>
   );
 }
